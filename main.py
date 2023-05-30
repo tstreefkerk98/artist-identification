@@ -1,4 +1,3 @@
-import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -24,7 +23,7 @@ betas = (0.9, 0.999)
 epsilon = 1e-8
 
 
-def train():
+def main():
     # Set the device to be used (cuda if available, else cpu)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -38,14 +37,14 @@ def train():
     # Load the dataset
     dataset = ImageFolder(dataset_dir, transform=data_transforms)
 
-    print('length: ', len(dataset))
-
     # Split the dataset into training, validation, and test sets
     train_size = int(0.8 * len(dataset)) if not TESTING else 57 * 4
     val_size = int(0.1 * len(dataset)) if not TESTING else 57
     test_size = int(0.1 * len(dataset)) if not TESTING else 57
     void_size = len(dataset) - train_size - val_size - test_size
-    train_dataset, val_dataset, test_dataset, _ = torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
+    train_dataset, val_dataset, test_dataset, _ = torch.utils.data.random_split(dataset,
+                                                                                [train_size, val_size, test_size,
+                                                                                 void_size])
 
     # Create data loaders for training, validation, and test sets
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -127,4 +126,4 @@ def train():
 
 
 if __name__ == '__main__':
-    train()
+    main()
