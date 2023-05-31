@@ -16,7 +16,6 @@ NUM_CLASSES = 57
 
 # Hyperparameters
 learning_rate = 1e-3
-momentum = 0.9
 num_epochs = 10
 batch_size = 32
 betas = (0.9, 0.999)
