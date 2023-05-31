@@ -4,10 +4,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
-from torchvision.models import resnet50
+from torchvision.models import ResNet18_Weights, resnet18
 from tqdm import tqdm
 
-TESTING = True
+TESTING = False
 
 # Path to datasets
 dataset_dir = "dataset"
@@ -15,7 +15,7 @@ dataset_dir = "dataset"
 NUM_CLASSES = 57
 
 # Hyperparameters
-learning_rate = 0.001
+learning_rate = 1e-3
 momentum = 0.9
 num_epochs = 10
 batch_size = 32
@@ -52,7 +52,9 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     # Load a pre-trained ResNet-50 model
-    model = resnet50(pretrained=True)
+    model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+    for param in model.parameters():
+        param.requires_grad = False
     num_classes = len(dataset.classes)
 
     # num_classes should equal 57
