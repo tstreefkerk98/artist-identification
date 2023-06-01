@@ -6,13 +6,15 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.models import ResNet18_Weights, resnet18
 from tqdm import tqdm
+from datetime import datetime
 
+SAVE_MODEL = True
 TESTING = False
+NUM_CLASSES = 57
 
 # Path to datasets
-dataset_dir = "dataset"
-
-NUM_CLASSES = 57
+dataset_dir = 'dataset'
+models_dir = 'models'
 
 # Hyperparameters
 learning_rate = 1e-3
@@ -20,7 +22,6 @@ num_epochs = 10
 batch_size = 32
 betas = (0.9, 0.999)
 epsilon = 1e-8
-
 num_workers = 4
 
 
@@ -39,7 +40,7 @@ def main():
 
     # Split the dataset into training, validation, and test sets
     if TESTING:
-        train_size, val_size, test_size = 57 * 4, 57, 57
+        train_size, val_size, test_size = NUM_CLASSES * 4, NUM_CLASSES, NUM_CLASSES
     else:
         train_size, val_size, test_size = int(0.8 * len(dataset)), int(0.1 * len(dataset)), int(0.1 * len(dataset))
     void_size = len(dataset) - train_size - val_size - test_size
@@ -54,7 +55,7 @@ def main():
     # Create data loaders for training, validation, and test sets
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # Load a pre-trained ResNet-18 model
     model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
@@ -130,6 +131,47 @@ def main():
         val_loss /= len(val_loader)
 
         print(f"Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.4f}")
+
+    # TODO: Set seed and model_name dynamically
+    model_name = 'resnet18-imagenet'
+    seed = 123
+
+    # Save model
+    if SAVE_MODEL:
+        save_model(model, optimizer, model_name, seed)
+
+
+def save_model(model, optimizer, model_name, seed):
+    timestamp = get_timestamp()
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'model_name': model_name,
+        'seed': seed,
+        'timestamp': timestamp,
+    }, f"{models_dir}/{model_name}_{seed}_{timestamp}.pt")
+
+
+def load_model(model, optimizer, filename, evaluate=True):
+    state = torch.load(f"{models_dir}/{filename}")
+    model.load_state_dict(state['model_state_dict'])
+    optimizer.load_state_dict(state['optimizer_state_dict'])
+    model_name = state['model_name']
+    seed = state['seed']
+
+    # Depending on purpose of model loading we call either `eval()` or `train()`
+    if evaluate:
+        model.eval()
+    else:
+        model.train()
+
+    return model_name, seed
+
+
+def get_timestamp():
+    now = datetime.now()
+    fill = lambda x: str(x).zfill(2)
+    return f"{now.year}{fill(now.month)}{fill(now.day)}-{fill(now.hour)}{fill(now.minute)}{fill(now.second)}"
 
 
 if __name__ == '__main__':
