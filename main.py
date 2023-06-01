@@ -43,13 +43,18 @@ def main():
     else:
         train_size, val_size, test_size = int(0.8 * len(dataset)), int(0.1 * len(dataset)), int(0.1 * len(dataset))
     void_size = len(dataset) - train_size - val_size - test_size
+
+    # If we are not testing the void_size should be zero
+    if not TESTING:
+        assert void_size == 0
+
     train_dataset, val_dataset, test_dataset, _ = \
         torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
 
     # Create data loaders for training, validation, and test sets
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     # Load a pre-trained ResNet-18 model
     model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
@@ -101,14 +106,14 @@ def main():
 
         print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}")
 
-        # Test phase
+        # Validation phase
         model.eval()
-        test_loss = 0.0
-        test_correct = 0
-        test_total = 0
+        val_loss = 0.0
+        val_correct = 0
+        val_total = 0
 
         with torch.no_grad():
-            for inputs, labels in test_loader:
+            for inputs, labels in val_loader:
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -117,14 +122,14 @@ def main():
 
                 loss = criterion(outputs, labels)
 
-                test_loss += loss.item()
-                test_total += labels.size(0)
-                test_correct += (predicted == labels).sum().item()
+                val_loss += loss.item()
+                val_total += labels.size(0)
+                val_correct += (predicted == labels).sum().item()
 
-        test_accuracy = test_correct / test_total
-        test_loss /= len(test_loader)
+        val_accuracy = val_correct / val_total
+        val_loss /= len(val_loader)
 
-        print(f"Test Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.4f}")
+        print(f"Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.4f}")
 
 
 if __name__ == '__main__':
