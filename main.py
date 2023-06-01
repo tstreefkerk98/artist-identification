@@ -1,3 +1,4 @@
+import pickle
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,14 +10,16 @@ from tqdm import tqdm
 from datetime import datetime
 
 SAVE_MODEL = True
+SAVE_STATISTICS = True
 TESTING = False
 NUM_CLASSES = 57
 
-# Path to datasets
+# Paths to directories.
 dataset_dir = 'dataset'
 models_dir = 'models'
+statistics_dir = 'statistics'
 
-# Hyperparameters
+# Hyperparameters.
 learning_rate = 1e-3
 num_epochs = 10
 batch_size = 32
@@ -26,10 +29,10 @@ num_workers = 4
 
 
 def main():
-    # Set the device to be used (cuda if available, else cpu)
+    # Set the device to be used (cuda if available, else cpu).
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define transforms for data preprocessing
+    # Define transforms for data preprocessing.
     data_transforms = transforms.Compose([
         transforms.CenterCrop((224, 224)),
         transforms.ToTensor(),
@@ -38,47 +41,59 @@ def main():
     # Load the dataset
     dataset = ImageFolder(dataset_dir, transform=data_transforms)
 
-    # Split the dataset into training, validation, and test sets
+    # Split the dataset into training, validation, and test sets.
     if TESTING:
         train_size, val_size, test_size = NUM_CLASSES * 4, NUM_CLASSES, NUM_CLASSES
     else:
         train_size, val_size, test_size = int(0.8 * len(dataset)), int(0.1 * len(dataset)), int(0.1 * len(dataset))
     void_size = len(dataset) - train_size - val_size - test_size
 
-    # If we are not testing the void_size should be zero
+    # If we are not testing the void_size should be zero.
     if not TESTING:
         assert void_size == 0
 
     train_dataset, val_dataset, test_dataset, _ = \
         torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
 
-    # Create data loaders for training, validation, and test sets
+    # Create data loaders for training, validation, and test sets.
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    # Load a pre-trained ResNet-18 model
+    # Load a pre-trained ResNet-18 model.
     model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     for param in model.parameters():
         param.requires_grad = False
     num_classes = len(dataset.classes)
 
-    # num_classes should equal 57
+    # num_classes should equal 57.
     assert num_classes == NUM_CLASSES
 
-    # Modify the last fully connected layer to match the number of classes
+    # Modify the last fully connected layer to match the number of classes.
     model.fc = nn.Linear(model.fc.in_features, num_classes)
 
-    # Move the model to the device
+    # Move the model to the device.
     model = model.to(device)
 
-    # Define the loss function and optimizer
+    # Define the loss function and optimizer.
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=epsilon)
 
+    # Object to store train and validation losses and accuracies in.
+    statistics = {}
+
+    # TODO: Set seed and model_name dynamically
+    model_name = 'resnet18-imagenet'
+    seed = 123
+
+    timestamp = get_timestamp()
+    # The fingerprint of the run, for example: 'resnet18-imagenet_123_20230601-125524'
+    fingerprint = f"{model_name}_{seed}_{timestamp}"
+
     # Training loop
     print('Starting training loop...\n')
-    for _ in tqdm(range(num_epochs)):
+    for epoch in tqdm(range(num_epochs)):
+
         # Training phase
         model.train()
         train_loss = 0.0
@@ -107,7 +122,7 @@ def main():
 
         print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}")
 
-        # Validation phase
+        # Validation phase.
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -132,40 +147,66 @@ def main():
 
         print(f"Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.4f}")
 
-    # TODO: Set seed and model_name dynamically
-    model_name = 'resnet18-imagenet'
-    seed = 123
+        # Write train and validation losses and accuracies to `statistics` object.
+        if SAVE_STATISTICS:
+            write_statistics(statistics, model_name, seed, epoch, train_loss, train_accuracy, val_loss, val_accuracy)
 
-    # Save model
+    # If `statistics` is not empty, it means we stored some stats, and we should save them.
+    if statistics:
+        save_statistics(statistics, fingerprint)
+
+    # Save model.
     if SAVE_MODEL:
-        save_model(model, optimizer, model_name, seed)
+        save_model(model, optimizer, model_name, seed, timestamp, fingerprint)
 
 
-def save_model(model, optimizer, model_name, seed):
-    timestamp = get_timestamp()
+def save_model(model, optimizer, model_name, seed, timestamp, fingerprint):
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'model_name': model_name,
         'seed': seed,
         'timestamp': timestamp,
-    }, f"{models_dir}/{model_name}_{seed}_{timestamp}.pt")
+    }, f"{models_dir}/{fingerprint}.pt")
 
 
-def load_model(model, optimizer, filename, evaluate=True):
-    state = torch.load(f"{models_dir}/{filename}")
+def load_model(model, optimizer, fingerprint, evaluate=True):
+    state = torch.load(f"{models_dir}/{fingerprint}.pt")
     model.load_state_dict(state['model_state_dict'])
     optimizer.load_state_dict(state['optimizer_state_dict'])
     model_name = state['model_name']
     seed = state['seed']
 
-    # Depending on purpose of model loading we call either `eval()` or `train()`
+    # Depending on purpose of model loading we call either `eval()` or `train()`.
     if evaluate:
         model.eval()
     else:
         model.train()
 
     return model_name, seed
+
+
+def write_statistics(statistics, model_name, seed, epoch, train_loss, train_accuracy, val_loss, val_accuracy):
+    if model_name not in statistics:
+        statistics[model_name] = {}
+    if seed not in statistics[model_name]:
+        statistics[model_name][seed] = {}
+    statistics[model_name][seed][epoch] = {
+        'Training loss': train_loss,
+        'Training accuracy': train_accuracy,
+        'Validation loss': val_loss,
+        'Validation accuracy': val_accuracy,
+    }
+
+
+def save_statistics(statistics, fingerprint):
+    with open(f"{statistics_dir}/{fingerprint}.pkl", 'wb') as outp:
+        pickle.dump(statistics, outp, pickle.HIGHEST_PROTOCOL)
+
+
+def load_statistics(fingerprint):
+    with open(f"{statistics_dir}/{fingerprint}.pkl", 'rb') as inp:
+        return pickle.load(inp)
 
 
 def get_timestamp():
