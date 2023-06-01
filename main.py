@@ -21,6 +21,8 @@ batch_size = 32
 betas = (0.9, 0.999)
 epsilon = 1e-8
 
+num_workers = 4
+
 
 def main():
     # Set the device to be used (cuda if available, else cpu)
@@ -36,20 +38,20 @@ def main():
     dataset = ImageFolder(dataset_dir, transform=data_transforms)
 
     # Split the dataset into training, validation, and test sets
-    train_size = int(0.8 * len(dataset)) if not TESTING else 57 * 4
-    val_size = int(0.1 * len(dataset)) if not TESTING else 57
-    test_size = int(0.1 * len(dataset)) if not TESTING else 57
+    if TESTING:
+        train_size, val_size, test_size = 57 * 4, 57, 57
+    else:
+        train_size, val_size, test_size = int(0.8 * len(dataset)), int(0.1 * len(dataset)), int(0.1 * len(dataset))
     void_size = len(dataset) - train_size - val_size - test_size
-    train_dataset, val_dataset, test_dataset, _ = torch.utils.data.random_split(dataset,
-                                                                                [train_size, val_size, test_size,
-                                                                                 void_size])
+    train_dataset, val_dataset, test_dataset, _ = \
+        torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
 
     # Create data loaders for training, validation, and test sets
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    # Load a pre-trained ResNet-50 model
+    # Load a pre-trained ResNet-18 model
     model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     for param in model.parameters():
         param.requires_grad = False
@@ -99,7 +101,7 @@ def main():
 
         print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}")
 
-        # Validation phase
+        # Test phase
         model.eval()
         test_loss = 0.0
         test_correct = 0
