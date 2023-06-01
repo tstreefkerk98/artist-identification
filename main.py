@@ -8,27 +8,38 @@ from torchvision.datasets import ImageFolder
 from torchvision.models import ResNet18_Weights, resnet18
 from tqdm import tqdm
 from datetime import datetime
+import PIL
+import os
 
 SAVE_MODEL = True
+PIL.Image.MAX_IMAGE_PIXELS = 933120000
 SAVE_STATISTICS = True
 TESTING = False
 NUM_CLASSES = 57
 
-# Paths to directories.
+#####
+# Path to datasets
+#####
 dataset_dir = 'dataset'
 models_dir = 'models'
 statistics_dir = 'statistics'
 
-# Hyperparameters.
+#####
+# Hyperparameters
+#####
 learning_rate = 1e-3
-num_epochs = 10
-batch_size = 32
+num_epochs = 100
+batch_size = 128
 betas = (0.9, 0.999)
 epsilon = 1e-8
-num_workers = 4
+num_workers = 3 * os.cpu_count() // 4
+# Number of epochs until convergence is assumed
+early_stop_limit = 5
+early_stop_epsilon = 1e-2
+seeds = [1]
 
 
-def main():
+def main(seed=1):
     # Set the device to be used (cuda if available, else cpu).
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -78,13 +89,15 @@ def main():
     # Define the loss function and optimizer.
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=epsilon)
+    last_train_acc = None
+    epochs_without_improvement = 0
+    converged = False
 
     # Object to store train and validation losses and accuracies in.
     statistics = {}
 
     # TODO: Set seed and model_name dynamically
     model_name = 'resnet18-imagenet'
-    seed = 123
 
     timestamp = get_timestamp()
     # The fingerprint of the run, for example: 'resnet18-imagenet_123_20230601-125524'
@@ -92,8 +105,9 @@ def main():
 
     # Training loop
     print('Starting training loop...\n')
-    for epoch in tqdm(range(num_epochs)):
-
+    reporter = tqdm(range(num_epochs))
+    for epoch in reporter:
+        message = ''
         # Training phase
         model.train()
         train_loss = 0.0
@@ -120,9 +134,14 @@ def main():
         train_accuracy = train_correct / train_total
         train_loss /= len(train_loader)
 
-        print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f}")
+        if last_train_acc is not None and last_train_acc - train_loss < early_stop_epsilon:
+            epochs_without_improvement += 1
+        else:
+            epochs_without_improvement = 0
 
-        # Validation phase.
+        message += f"Train Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.4f} | "
+
+        # Validation phase
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -145,7 +164,22 @@ def main():
         val_accuracy = val_correct / val_total
         val_loss /= len(val_loader)
 
-        print(f"Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.4f}")
+        message += f"Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.4f}"
+        reporter.set_description(message)
+
+        if epochs_without_improvement == early_stop_limit:
+            # optimizer.lr /= 10
+            # Converged before -> stop completely
+            if converged:
+                print("Training finished.")
+                break
+            print("Last layer converged.")
+            # Start training the entire model
+            for param in model.parameters():
+                param.requires_grad = True
+            converged = True
+
+        last_train_acc = train_accuracy
 
         # Write train and validation losses and accuracies to `statistics` object.
         if SAVE_STATISTICS:
@@ -216,4 +250,7 @@ def get_timestamp():
 
 
 if __name__ == '__main__':
-    main()
+    print("cuda" if torch.cuda.is_available() else "cpu")
+    for seed in seeds:
+        print(f"\n\nRUNNING SEED {seed}\n\n")
+        main(seed)

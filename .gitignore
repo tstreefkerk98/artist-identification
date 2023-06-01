@@ -2,6 +2,7 @@ dataset/*
 !dataset/.gitkeep
 .idea/
 models/*
+wikiart_dataset/
 !models/.gitkeep
 statistics/*
 !statistics/.gitkeep
