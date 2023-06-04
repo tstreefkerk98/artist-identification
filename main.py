@@ -35,11 +35,11 @@ epsilon = 1e-8
 num_workers = 3 * os.cpu_count() // 4
 # Number of epochs until convergence is assumed
 early_stop_limit = 5
-early_stop_epsilon = 1e-2
+early_stop_epsilon = 0.3
 seeds = [1]
 
 
-def main(seed=1):
+def main(model, model_name, seed=1):
     # Set the device to be used (cuda if available, else cpu).
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -69,10 +69,10 @@ def main(seed=1):
     # Create data loaders for training, validation, and test sets.
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    # test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # Load a pre-trained ResNet-18 model.
-    model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+    # model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     for param in model.parameters():
         param.requires_grad = False
     num_classes = len(dataset.classes)
@@ -95,9 +95,6 @@ def main(seed=1):
 
     # Object to store train and validation losses and accuracies in.
     statistics = {}
-
-    # TODO: Set seed and model_name dynamically
-    model_name = 'resnet18-imagenet'
 
     timestamp = get_timestamp()
     # The fingerprint of the run, for example: 'resnet18-imagenet_123_20230601-125524'
@@ -185,6 +182,29 @@ def main(seed=1):
         if SAVE_STATISTICS:
             write_statistics(statistics, model_name, seed, epoch, train_loss, train_accuracy, val_loss, val_accuracy)
 
+    # Run the test set
+    test_loss = 0.0
+    test_correct = 0
+    test_total = 0
+
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+
+            loss = criterion(outputs, labels)
+
+            test_loss += loss.item()
+            test_total += labels.size(0)
+            test_correct += (predicted == labels).sum().item()
+    test_accuracy = test_correct / test_total
+    test_loss /= len(test_loader)
+    statistics[model][seed]['test_loss'] = test_loss
+    statistics[model][seed]['test_acc'] = test_accuracy
+
     # If `statistics` is not empty, it means we stored some stats, and we should save them.
     if statistics:
         save_statistics(statistics, fingerprint)
@@ -253,4 +273,9 @@ if __name__ == '__main__':
     print("cuda" if torch.cuda.is_available() else "cpu")
     for seed in seeds:
         print(f"\n\nRUNNING SEED {seed}\n\n")
-        main(seed)
+        resnet18 = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+        resnet20_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
+        resnet20_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
+        main(resnet18, f'resnet18_imagenet1k_{seed}', seed)
+        main(resnet20_cifar10, f'resnet20_cifar10_{seed}', seed)
+        main(resnet20_cifar100, f'resnet20_cifar100_{seed}', seed)
