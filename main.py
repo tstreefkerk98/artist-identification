@@ -36,7 +36,7 @@ num_workers = 3 * os.cpu_count() // 4
 # Number of epochs until convergence is assumed
 early_stop_limit = 5
 early_stop_epsilon = 0.3
-seeds = [1]
+seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
 def main(model, model_name, seed=1):
@@ -202,8 +202,8 @@ def main(model, model_name, seed=1):
             test_correct += (predicted == labels).sum().item()
     test_accuracy = test_correct / test_total
     test_loss /= len(test_loader)
-    statistics[model][seed]['test_loss'] = test_loss
-    statistics[model][seed]['test_acc'] = test_accuracy
+    statistics[model_name][seed]['test_loss'] = test_loss
+    statistics[model_name][seed]['test_acc'] = test_accuracy
 
     # If `statistics` is not empty, it means we stored some stats, and we should save them.
     if statistics:
