@@ -29,7 +29,7 @@ statistics_dir = 'statistics'
 #####
 learning_rate = 1e-3
 num_epochs = 100
-batch_size = 128
+batch_size = 64
 betas = (0.9, 0.999)
 epsilon = 1e-8
 num_workers = 3 * os.cpu_count() // 4
@@ -104,6 +104,10 @@ def main(model, model_name, seed=1):
     print('Starting training loop...\n')
     reporter = tqdm(range(num_epochs))
     for epoch in reporter:
+
+        # Clear GPU memory
+        torch.cuda.empty_cache()
+
         message = ''
         # Training phase
         model.train()
@@ -277,5 +281,8 @@ if __name__ == '__main__':
         resnet20_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
         resnet20_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
         main(resnet18, f'resnet18_imagenet1k_{seed}', seed)
+        del resnet18
         main(resnet20_cifar10, f'resnet20_cifar10_{seed}', seed)
+        del resnet20_cifar10
         main(resnet20_cifar100, f'resnet20_cifar100_{seed}', seed)
+        del resnet20_cifar100
