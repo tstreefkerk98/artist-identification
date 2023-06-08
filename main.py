@@ -21,7 +21,7 @@ NUM_CLASSES = 57
 #####
 # Path to datasets
 #####
-dataset_dir = 'dataset'
+dataset_dir = 'wikiart_dataset'
 models_dir = 'models'
 statistics_dir = 'statistics'
 
@@ -47,6 +47,9 @@ def main(model, model_name, seed=1):
     np.random.seed(seed)
 
     # Define transforms for data preprocessing.
+    to_tensor = transforms.Compose([
+        transforms.ToTensor()
+    ])
     data_transforms = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(0, 1),
