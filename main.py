@@ -1,6 +1,7 @@
 import pickle
 import torch
 import torch.nn as nn
+import numpy as np
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -20,7 +21,7 @@ NUM_CLASSES = 57
 #####
 # Path to datasets
 #####
-dataset_dir = 'dataset'
+dataset_dir = 'wikiart_dataset'
 models_dir = 'models'
 statistics_dir = 'statistics'
 
@@ -28,29 +29,41 @@ statistics_dir = 'statistics'
 # Hyperparameters
 #####
 learning_rate = 1e-3
-num_epochs = 100
+num_epochs = 20
 batch_size = 64
 betas = (0.9, 0.999)
 epsilon = 1e-8
 num_workers = 3 * os.cpu_count() // 4
 # Number of epochs until convergence is assumed
-early_stop_limit = 5
-early_stop_epsilon = 0.3
-seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+early_stop_limit = 1
+early_stop_epsilon = 0.1
+seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 
 def main(model, model_name, seed=1):
     # Set the device to be used (cuda if available, else cpu).
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
     # Define transforms for data preprocessing.
+    to_tensor = transforms.Compose([
+        transforms.ToTensor()
+    ])
     data_transforms = transforms.Compose([
+        transforms.Normalize(1, 0),
+        transforms.RandomCrop((224, 224)),
+        transforms.RandomHorizontalFlip(0.5),
+        transforms.ToTensor()
+    ])
+    val_transforms = transforms.Compose([
+        transforms.Normalize(1, 0),
         transforms.CenterCrop((224, 224)),
-        transforms.ToTensor(),
+        transforms.ToTensor()
     ])
 
     # Load the dataset
-    dataset = ImageFolder(dataset_dir, transform=data_transforms)
+    dataset = ImageFolder(dataset_dir)
 
     # Split the dataset into training, validation, and test sets.
     if TESTING:
@@ -66,9 +79,14 @@ def main(model, model_name, seed=1):
     train_dataset, val_dataset, test_dataset, _ = \
         torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
 
+    # Apply transformations
+    train_dataset = data_transforms(train_dataset)
+    val_dataset = val_transforms(val_dataset)
+    test_dataset = val_transforms(test_dataset)
+
     # Create data loaders for training, validation, and test sets.
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     # Load a pre-trained ResNet-18 model.
@@ -82,13 +100,14 @@ def main(model, model_name, seed=1):
 
     # Modify the last fully connected layer to match the number of classes.
     model.fc = nn.Linear(model.fc.in_features, num_classes)
+    model.fc.requires_grad = True
 
     # Move the model to the device.
     model = model.to(device)
 
     # Define the loss function and optimizer.
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=epsilon)
+    optimizer = optim.Adam(model.fc.parameters(), lr=learning_rate, betas=betas, eps=epsilon)
     last_train_acc = None
     epochs_without_improvement = 0
     converged = False
@@ -178,6 +197,7 @@ def main(model, model_name, seed=1):
             # Start training the entire model
             for param in model.parameters():
                 param.requires_grad = True
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate/10, betas=betas, eps=epsilon)
             converged = True
 
         last_train_acc = train_accuracy
@@ -277,11 +297,11 @@ if __name__ == '__main__':
     print("cuda" if torch.cuda.is_available() else "cpu")
     for seed in seeds:
         print(f"\n\nRUNNING SEED {seed}\n\n")
-        resnet18 = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+        resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
         resnet20_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
         resnet20_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
-        main(resnet18, f'resnet18_imagenet1k_{seed}', seed)
-        del resnet18
+        main(resnet, f'resnet18_imagenet1k_{seed}', seed)
+        del resnet
         main(resnet20_cifar10, f'resnet20_cifar10_{seed}', seed)
         del resnet20_cifar10
         main(resnet20_cifar100, f'resnet20_cifar100_{seed}', seed)
