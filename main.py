@@ -21,7 +21,7 @@ NUM_CLASSES = 57
 #####
 # Path to datasets
 #####
-dataset_dir = 'wikiart_dataset'
+dataset_dir = 'dataset'
 models_dir = 'models'
 statistics_dir = 'statistics'
 
@@ -30,14 +30,14 @@ statistics_dir = 'statistics'
 #####
 learning_rate = 1e-3
 num_epochs = 20
-batch_size = 64
+batch_size = 32
 betas = (0.9, 0.999)
 epsilon = 1e-8
 num_workers = 3 * os.cpu_count() // 4
 # Number of epochs until convergence is assumed
 early_stop_limit = 1
 early_stop_epsilon = 0.1
-seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+seeds = [1]
 
 
 def main(model, model_name, seed=1):
@@ -47,19 +47,16 @@ def main(model, model_name, seed=1):
     np.random.seed(seed)
 
     # Define transforms for data preprocessing.
-    to_tensor = transforms.Compose([
-        transforms.ToTensor()
-    ])
     data_transforms = transforms.Compose([
-        transforms.Normalize(1, 0),
+        transforms.ToTensor(),
+        transforms.Normalize(0, 1),
         transforms.RandomCrop((224, 224)),
-        transforms.RandomHorizontalFlip(0.5),
-        transforms.ToTensor()
+        transforms.RandomHorizontalFlip(0.5)
     ])
     val_transforms = transforms.Compose([
-        transforms.Normalize(1, 0),
-        transforms.CenterCrop((224, 224)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(0, 1),
+        transforms.CenterCrop((224, 224))
     ])
 
     # Load the dataset
@@ -80,9 +77,9 @@ def main(model, model_name, seed=1):
         torch.utils.data.random_split(dataset, [train_size, val_size, test_size, void_size])
 
     # Apply transformations
-    train_dataset = data_transforms(train_dataset)
-    val_dataset = val_transforms(val_dataset)
-    test_dataset = val_transforms(test_dataset)
+    train_dataset.dataset.transform = data_transforms
+    val_dataset.dataset.transform = val_transforms
+    test_dataset.dataset.transform = val_transforms
 
     # Create data loaders for training, validation, and test sets.
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -133,8 +130,11 @@ def main(model, model_name, seed=1):
         train_loss = 0.0
         train_correct = 0
         train_total = 0
+        i = 0
 
         for inputs, labels in train_loader:
+            print(i, len(labels))
+            i += 1
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -150,6 +150,8 @@ def main(model, model_name, seed=1):
             train_loss += loss.item()
             train_total += labels.size(0)
             train_correct += (predicted == labels).sum().item()
+            del inputs
+            del labels
 
         train_accuracy = train_correct / train_total
         train_loss /= len(train_loader)
@@ -166,9 +168,12 @@ def main(model, model_name, seed=1):
         val_loss = 0.0
         val_correct = 0
         val_total = 0
+        i = 0
 
         with torch.no_grad():
             for inputs, labels in val_loader:
+                print(i)
+                i += 1
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
