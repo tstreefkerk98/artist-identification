@@ -50,7 +50,7 @@ def plot_artist_performance_bar_chart_horizontal(models_values, model_labels, ar
     plt.show()
 
 
-def plot_run_values(paths):
+def plot_training_statistics(paths):
     """
     Plots all the models averaged over the seeds it finds in the `paths` variable.
     :param paths: The paths to statistics files, for example:
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     red = [c / 256 for c in [222, 81, 82]] + [opacity]
 
     # Example for `plot_run_values`
-    plot_run_values(['resnet18_imagenet1k_1_1_20230606-081824'])
+    plot_training_statistics(['resnet18_imagenet1k_1_1_20230606-081824'])
 
     # # Example of the different variables
     # model_labels = ['model1', 'model2']
