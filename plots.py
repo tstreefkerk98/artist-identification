@@ -125,7 +125,7 @@ if __name__ == '__main__':
     red = [c / 256 for c in [222, 81, 82]] + [opacity]
 
     # Example for `plot_run_values`
-    plot_training_statistics(['resnet18_imagenet1k_1_1_20230606-081824'])
+    plot_training_statistics(['resnet18_imagenet1k_1_1_20230609-100202', 'resnet18_imagenet1k_2_2_20230610-000017', 'resnet18_imagenet1k_3_3_20230610-010624', 'resnet18_imagenet1k_4_4_20230610-021353', 'resnet18_imagenet1k_5_5_20230610-031505'])
 
     # # Example of the different variables
     # model_labels = ['model1', 'model2']

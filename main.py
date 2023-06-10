@@ -21,7 +21,7 @@ NUM_CLASSES = 57
 #####
 # Path to datasets
 #####
-dataset_dir = 'wikiart_dataset'
+dataset_dir = 'dataset'
 models_dir = 'models'
 statistics_dir = 'statistics'
 
@@ -37,7 +37,7 @@ num_workers = 3 * os.cpu_count() // 4
 # Number of epochs until convergence is assumed
 early_stop_limit = 1
 early_stop_epsilon = 0.1
-seeds = [1]
+seeds = [2, 3, 4, 5]
 
 
 def main(model, model_name, seed=1):
@@ -52,14 +52,15 @@ def main(model, model_name, seed=1):
     ])
     data_transforms = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(0, 1),
         transforms.RandomCrop((224, 224)),
+        # transforms.Normalize(0, 1),
         transforms.RandomHorizontalFlip(0.5)
     ])
     val_transforms = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(0, 1),
-        transforms.CenterCrop((224, 224))
+        transforms.CenterCrop((224, 224)),
+        # transforms.Normalize(0, 1)
+
     ])
 
     # Load the dataset
@@ -107,7 +108,7 @@ def main(model, model_name, seed=1):
 
     # Define the loss function and optimizer.
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.fc.parameters(), lr=learning_rate, betas=betas, eps=epsilon)
+    optimizer = optim.Adam(model.fc.parameters(), lr=learning_rate, betas=betas, eps=epsilon, weight_decay=0.001)
     last_train_acc = None
     epochs_without_improvement = 0
     converged = False
@@ -136,7 +137,7 @@ def main(model, model_name, seed=1):
         i = 0
 
         for inputs, labels in train_loader:
-            print(i, len(labels))
+            # print(i, len(labels))
             i += 1
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -175,7 +176,7 @@ def main(model, model_name, seed=1):
 
         with torch.no_grad():
             for inputs, labels in val_loader:
-                print(i)
+                # print(i)
                 i += 1
                 inputs = inputs.to(device)
                 labels = labels.to(device)
@@ -205,7 +206,7 @@ def main(model, model_name, seed=1):
             # Start training the entire model
             for param in model.parameters():
                 param.requires_grad = True
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate/10, betas=betas, eps=epsilon)
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate/10, betas=betas, eps=epsilon, weight_decay=0.001)
             converged = True
 
         last_train_acc = train_accuracy
@@ -310,7 +311,7 @@ if __name__ == '__main__':
         resnet20_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
         main(resnet, f'resnet18_imagenet1k_{seed}', seed)
         del resnet
-        main(resnet20_cifar10, f'resnet20_cifar10_{seed}', seed)
-        del resnet20_cifar10
-        main(resnet20_cifar100, f'resnet20_cifar100_{seed}', seed)
-        del resnet20_cifar100
+        # main(resnet20_cifar10, f'resnet20_cifar10_{seed}', seed)
+        # del resnet20_cifar10
+        # main(resnet20_cifar100, f'resnet20_cifar100_{seed}', seed)
+        # del resnet20_cifar100
