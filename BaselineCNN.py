@@ -32,7 +32,7 @@ class BaselineCNN(nn.Module):
         """
         x = F.relu(self.conv_bn1(self.maxpool1(self.conv1(x))))
         x = F.relu(self.conv_bn2(self.maxpool2(self.conv2(x))))
-        x = th.flatten(x)
+        x = th.flatten(x, start_dim=1)
         x = F.relu(self.fc_bn1(self.fc1(x)))
         x = self.fc2(x)
         ret = F.softmax(x, dim=1)
