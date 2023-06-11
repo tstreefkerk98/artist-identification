@@ -170,7 +170,7 @@ def run(name, model, num_ftrs, num_epochs, pretrained, seed):
     optimizer_init = lambda parameters, learning_rate: optim.Adam(parameters, lr=learning_rate, betas=betas)
 
     if pretrained:
-        model.fc = nn.Sequential(nn.Linear(num_ftrs, 57), nn.Softmax(1))
+        model.fc = nn.Linear(num_ftrs, 57)
 
     model = model.to(device)
 
