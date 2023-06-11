@@ -25,6 +25,15 @@ seed = 1
 torch.random.manual_seed(seed)
 np.random.seed(seed)
 
+#####
+# Hyperparameters
+#####
+learning_rate = 1e-3
+num_epochs = 25
+batch_size = 16
+betas = (0.9, 0.999)
+epsilon = 1e-8
+
 # Data augmentation and normalization for training
 # Just normalization for validation
 data_transforms = {
@@ -46,7 +55,7 @@ data_dir = 'wikiart_dataset'
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                           data_transforms[x])
                   for x in ['train', 'validation']}
-dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=4,
+dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size,
                                               shuffle=True, num_workers=4)
                for x in ['train', 'validation']}
 dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'validation']}
@@ -54,19 +63,11 @@ class_names = image_datasets['train'].classes
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-#####
-# Hyperparameters
-#####
-learning_rate = 1e-3
-num_epochs = 3
-batch_size = 16
-betas = (0.9, 0.999)
-epsilon = 1e-8
-
 
 def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretrained=True):
     since = time.time()
     optimizer = optimizer_init(model.parameters() if not pretrained else model.fc.parameters(), learning_rate)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     statistics = {}
 
     # Create a temporary directory to save training checkpoints
@@ -75,10 +76,12 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
 
         torch.save(model.state_dict(), best_model_params_path)
         best_acc = 0.0
-        train_loss = sys.maxsize
+        train_loss = -1
         train_acc = 0
         val_loss = sys.maxsize
         val_acc = 0
+        early_stop_limit = 5
+        current_limit = 0
         converged = False
 
         for epoch in range(num_epochs):
@@ -119,13 +122,18 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
                 if phase == 'train':
-                    if train_loss < loss:
-                        if converged:
-                            return model, statistics, optimizer
-                        converged = True
-                        optimizer = optimizer_init(model.parameters(), learning_rate / 10)
-                    train_loss = loss
+                    if train_loss != -1 and train_loss + epsilon < loss.item():
+                        if not converged:
+                            if current_limit < early_stop_limit:
+                                current_limit += 1
+                            else:
+                                for parameter in model.parameters():
+                                    parameter.requires_grad = True
+                                converged = True
+                                optimizer = optimizer_init(model.parameters(), learning_rate / 10)
+                    train_loss = loss.item()
                     train_acc = torch.sum(preds == labels.data) / len(preds)
+                    optimizer.step()
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
@@ -152,18 +160,17 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
 
 
 def run(name, model, num_ftrs, num_epochs, pretrained, seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     timestamp = get_timestamp()
     fingerprint = f"{name}_{seed}_{timestamp}"
     criterion = nn.CrossEntropyLoss()
 
     # Observe that all parameters are being optimized
-    optimizer_init = lambda parameters, learning_rate: optim.Adam(parameters, lr=learning_rate, betas=(0.9, 0.9999))
+    optimizer_init = lambda parameters, learning_rate: optim.Adam(parameters, lr=learning_rate, betas=betas)
 
     if pretrained:
-        for parameter in model.parameters():
-            parameter.requires_grad = False
         model.fc = nn.Sequential(nn.Linear(num_ftrs, 57), nn.Softmax(1))
-        model.fc.requires_grad = True
 
     model = model.to(device)
 
@@ -180,18 +187,17 @@ def run(name, model, num_ftrs, num_epochs, pretrained, seed):
 def main():
     seeds = range(1)
     for seed in tqdm(seeds):
-        torch.manual_seed(seed)
-        # resnet_imagenet = models.resnet18(weights='IMAGENET1K_V1')
-        # num_ftrs_imagenet = resnet_imagenet.fc.in_features
-        # run("resnet18_imagenet", resnet_imagenet, num_ftrs_imagenet, num_epochs, pretrained=True, seed=seed)
-        #
-        # resnet_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
-        # num_ftrs_cifar10 = resnet_cifar10.fc.in_features
-        # run("resnet18_cifar10", resnet_cifar10, num_ftrs_cifar10, num_epochs, pretrained=True, seed=seed)
-        #
-        # resnet_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
-        # num_ftrs_cifar100 = resnet_cifar100.fc.in_features
-        # run("resnet18_cifar100", resnet_cifar100, num_ftrs_cifar100, num_epochs, pretrained=True, seed=seed)
+        resnet_imagenet = models.resnet18(weights='IMAGENET1K_V1')
+        num_ftrs_imagenet = resnet_imagenet.fc.in_features
+        run("resnet18_imagenet", resnet_imagenet, num_ftrs_imagenet, num_epochs, pretrained=True, seed=seed)
+
+        resnet_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
+        num_ftrs_cifar10 = resnet_cifar10.fc.in_features
+        run("resnet18_cifar10", resnet_cifar10, num_ftrs_cifar10, num_epochs, pretrained=True, seed=seed)
+
+        resnet_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
+        num_ftrs_cifar100 = resnet_cifar100.fc.in_features
+        run("resnet18_cifar100", resnet_cifar100, num_ftrs_cifar100, num_epochs, pretrained=True, seed=seed)
 
         baseline = BaselineCNN(57)
         run("baseline", baseline, -1, num_epochs, pretrained=False, seed=seed)
