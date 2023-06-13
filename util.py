@@ -21,10 +21,11 @@ def save_model(model, optimizer, model_name, seed, timestamp, fingerprint):
     }, f"{models_dir}/{fingerprint}.pt")
 
 
-def load_model(model, optimizer, fingerprint, evaluate=True):
+def load_model(model, fingerprint, optimizer=None, evaluate=True):
     state = torch.load(f"{models_dir}/{fingerprint}.pt")
     model.load_state_dict(state['model_state_dict'])
-    optimizer.load_state_dict(state['optimizer_state_dict'])
+    if optimizer is not None:
+        optimizer.load_state_dict(state['optimizer_state_dict'])
     model_name = state['model_name']
     seed = state['seed']
 
@@ -34,7 +35,7 @@ def load_model(model, optimizer, fingerprint, evaluate=True):
     else:
         model.train()
 
-    return model_name, seed
+    return model, seed
 
 
 def write_statistics(statistics, model_name, seed, epoch, train_loss, train_accuracy, val_loss, val_accuracy):

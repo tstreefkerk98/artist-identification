@@ -185,7 +185,7 @@ def run(name, model, num_ftrs, num_epochs, pretrained, seed):
 
 
 def main():
-    seeds = range(1)
+    seeds = [8]
     for seed in tqdm(seeds):
         resnet_imagenet = models.resnet18(weights='IMAGENET1K_V1')
         num_ftrs_imagenet = resnet_imagenet.fc.in_features
@@ -193,11 +193,11 @@ def main():
 
         resnet_cifar10 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar10_resnet20", pretrained=True)
         num_ftrs_cifar10 = resnet_cifar10.fc.in_features
-        run("resnet18_cifar10", resnet_cifar10, num_ftrs_cifar10, num_epochs, pretrained=True, seed=seed)
+        run("resnet20_cifar10", resnet_cifar10, num_ftrs_cifar10, num_epochs, pretrained=True, seed=seed)
 
         resnet_cifar100 = torch.hub.load("chenyaofo/pytorch-cifar-models", "cifar100_resnet20", pretrained=True)
         num_ftrs_cifar100 = resnet_cifar100.fc.in_features
-        run("resnet18_cifar100", resnet_cifar100, num_ftrs_cifar100, num_epochs, pretrained=True, seed=seed)
+        run("resnet20_cifar100", resnet_cifar100, num_ftrs_cifar100, num_epochs, pretrained=True, seed=seed)
 
         baseline = BaselineCNN(57)
         run("baseline", baseline, -1, num_epochs, pretrained=False, seed=seed)
