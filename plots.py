@@ -183,21 +183,21 @@ if __name__ == '__main__':
     red = [c / 256 for c in [222, 81, 82]] + [opacity]
 
     fingerprints = {
-        "baseline": 'baseline_8_20230613-223758',
-        "resnet18": 'resnet18_imagenet_8_20230613-205208',
-        "resnet20-10": 'resnet20_cifar10_8_20230613-212554',
-        "resnet20-100": 'resnet20_cifar100_8_20230613-220324'
+        "baseline": 'baseline_8_20230614-120141',
+        "resnet18": 'resnet18_imagenet_8_20230614-101748',
+        "resnet20-10": 'resnet20_cifar10_8_20230614-104930',
+        "resnet20-100": 'resnet20_cifar100_8_20230614-112509'
     }
 
-    # Plot loss graphs
-    # Baseline
-    plot_training_statistics([fingerprints["baseline"]])
-    # ImageNet1k
-    plot_training_statistics([fingerprints["resnet18"]])
-    # Cifar10
-    plot_training_statistics([fingerprints["resnet20-10"]])
-    # Cifar100
-    plot_training_statistics([fingerprints["resnet20-100"]])
+    # # Plot loss graphs
+    # # Baseline
+    # plot_training_statistics([fingerprints["baseline"]])
+    # # ImageNet1k
+    # plot_training_statistics([fingerprints["resnet18"]])
+    # # Cifar10
+    # plot_training_statistics([fingerprints["resnet20-10"]])
+    # # Cifar100
+    # plot_training_statistics([fingerprints["resnet20-100"]])
 
     # Example of the different variables
     baseline = BaselineCNN()
@@ -217,6 +217,9 @@ if __name__ == '__main__':
         "resnet20-cifar100": load_model(resnet20_100, fingerprints["resnet20-100"])[0]
     }
     models_values, artist_labels = test_models(models)
+    # artist_labels = ['Fernand Leger', 'Erte', 'Sam Francis']
+    # artist_labels = ['Alfred Sisley', 'Albert Bierstadt', 'Isaac Levitan', 'Ivan Shishkin', 'Camille Corot', 'Ivan Aivazovsky', 'Claude Monet']
+    artist_labels = ['Francisco Goya', 'Rembrandt', 'Pierre-Auguste Renoir', 'Ilya Repin', 'William Merritt Chase', 'Amedeo Modigliani', 'Zdislav Beksinski', 'Raphael Kirchner']
     model_names = list(models.keys())
     reconstructed_values = [[models_values[name][artist] for artist in artist_labels] for name in model_names]
 
