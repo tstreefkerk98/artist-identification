@@ -131,7 +131,7 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
                                     parameter.requires_grad = True
                                 converged = True
                                 optimizer = optimizer_init(model.parameters(), learning_rate / 10)
-                    train_loss = loss.item()
+                    train_loss = running_loss / dataset_sizes[phase]
                     train_acc = torch.sum(preds == labels.data) / len(preds)
                     optimizer.step()
 

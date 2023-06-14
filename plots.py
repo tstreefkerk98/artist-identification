@@ -16,6 +16,7 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = 933120000
 
+
 def plot_artist_performance_bar_chart_vertical(models_values, model_labels, artist_labels):
     """
     Creates a vertical bar chart plot
@@ -48,7 +49,7 @@ def plot_artist_performance_bar_chart_horizontal(models_values, model_labels, ar
     """
     num_artists = len(models_values[0])
     bar_height = 0.2
-    plt.figure(figsize=(10, 30))
+    plt.figure(figsize=(20, 30))
     for i, model_values in enumerate(models_values):
         y = np.arange(num_artists) + i * bar_height
         plt.barh(y, model_values, height=bar_height, edgecolor='grey', label=model_labels[i], align='edge')
@@ -182,21 +183,21 @@ if __name__ == '__main__':
     red = [c / 256 for c in [222, 81, 82]] + [opacity]
 
     fingerprints = {
-        "baseline" : 'baseline_0_20230612-003920',
-        "resnet18" : 'resnet18_imagenet_0_20230611-230306',
-        "resnet20-10": 'resnet20_cifar10_0_20230611-233512',
-        "resnet20-100": 'resnet20_cifar100_0_20230612-000721'
+        "baseline": 'baseline_8_20230613-223758',
+        "resnet18": 'resnet18_imagenet_8_20230613-205208',
+        "resnet20-10": 'resnet20_cifar10_8_20230613-212554',
+        "resnet20-100": 'resnet20_cifar100_8_20230613-220324'
     }
 
-    # # Plot loss graphs
-    # # Baseline
-    # plot_training_statistics([fingerprints["baseline"]])
-    # # ImageNet1k
-    # plot_training_statistics([fingerprints["resnet18"]])
-    # # Cifar10
-    # plot_training_statistics([fingerprints["resnet20-10"]])
-    # # Cifar100
-    # plot_training_statistics([fingerprints["resnet20-100"]])
+    # Plot loss graphs
+    # Baseline
+    plot_training_statistics([fingerprints["baseline"]])
+    # ImageNet1k
+    plot_training_statistics([fingerprints["resnet18"]])
+    # Cifar10
+    plot_training_statistics([fingerprints["resnet20-10"]])
+    # Cifar100
+    plot_training_statistics([fingerprints["resnet20-100"]])
 
     # Example of the different variables
     baseline = BaselineCNN()
