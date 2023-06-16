@@ -49,7 +49,8 @@ def plot_artist_performance_bar_chart_horizontal(models_values, model_labels, ar
     """
     num_artists = len(models_values[0])
     bar_height = 0.2
-    plt.figure(figsize=(20, 30))
+    plt.figure(figsize=(18, 10))
+    plt.rc('font', size=12)
     for i, model_values in enumerate(models_values):
         y = np.arange(num_artists) + i * bar_height
         plt.barh(y, model_values, height=bar_height, edgecolor='grey', label=model_labels[i], align='edge')
@@ -132,6 +133,41 @@ def plot_training_statistics(paths):
         plt.show()
 
 
+def plot_together(paths):
+    statistics = {}
+    for path in paths:
+        new_statistics = load_statistics(path)
+        for model_key in new_statistics:
+            if model_key not in statistics:
+                statistics[model_key] = new_statistics[model_key]
+            else:
+                for seed_key in new_statistics[model_key]:
+                    if seed_key not in statistics[model_key]:
+                        statistics[model_key][seed_key] = new_statistics[model_key][seed_key]
+                    else:
+                        for epoch_key in new_statistics[model_key][seed_key]:
+                            if epoch_key not in statistics[model_key][seed_key]:
+                                statistics[model_key][seed_key][epoch_key] = new_statistics[model_key][seed_key][
+                                    epoch_key]
+                            else:
+                                print('This has data for the same epoch, something is wrong: ' + path)
+
+    for key in ['Training loss', 'Training accuracy', 'Validation loss', 'Validation accuracy']:
+        for i, model_key in enumerate(statistics):
+            model = statistics[model_key]
+            for seed in model.keys():
+                x_axis = range(len(model[seed].keys()))
+                epochs = [
+                    model[seed][epoch][key] if not torch.is_tensor(model[seed][epoch][key]) else model[seed][epoch][
+                        key].cpu() for epoch in model[seed].keys()]
+                plt.plot(x_axis, epochs, label=model_key)
+                plt.xlabel('Epoch')
+                plt.ylabel(key)
+                plt.title(key)
+        plt.legend()
+        plt.show()
+
+
 def test_models(models):
     data_transforms = {
         'test': transforms.Compose([
@@ -140,6 +176,12 @@ def test_models(models):
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
+        'train': transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
     }
 
     data_dir = 'wikiart_dataset'
@@ -158,6 +200,10 @@ def test_models(models):
     acc = defaultdict(lambda: defaultdict(float))
     for name, model in models.items():
         model.to(device)
+        confusion_matrix = np.zeros((57, 57))
+        overall_acc = 0
+        total = 0
+        plt.figure(figsize=(20, 20))
         for inputs, labels in dataloaders['test']:
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -167,9 +213,20 @@ def test_models(models):
             for i in range(len(preds)):
                 predicted_artist = class_names[preds[i]]
                 label_artist = class_names[labels[i]]
+                confusion_matrix[class_names.index(label_artist)][class_names.index(predicted_artist)] += 1
+                total += 1
                 if predicted_artist == label_artist:
                     # Each artist has 30 images in the test set
                     acc[name][label_artist] += 1 / 30
+                    overall_acc += 1
+        plt.matshow(confusion_matrix)
+        # plt.yticks(range(57), class_names)
+        # plt.xticks(range(57), class_names, rotation=90)
+        print(f"Test accuracy for {name}: {overall_acc / total}")
+
+        plt.title("Confusion matrix from " + name)
+        plt.colorbar()
+        plt.show()
 
     return acc, class_names
 
@@ -219,8 +276,11 @@ if __name__ == '__main__':
     models_values, artist_labels = test_models(models)
     # artist_labels = ['Fernand Leger', 'Erte', 'Sam Francis']
     # artist_labels = ['Alfred Sisley', 'Albert Bierstadt', 'Isaac Levitan', 'Ivan Shishkin', 'Camille Corot', 'Ivan Aivazovsky', 'Claude Monet']
-    artist_labels = ['Francisco Goya', 'Rembrandt', 'Pierre-Auguste Renoir', 'Ilya Repin', 'William Merritt Chase', 'Amedeo Modigliani', 'Zdislav Beksinski', 'Raphael Kirchner']
+    artist_labels = ['Francisco Goya', 'Rembrandt', 'Pierre-Auguste Renoir', 'William Merritt Chase', 'Amedeo Modigliani', 'Zdislav Beksinski', 'Raphael Kirchner']
     model_names = list(models.keys())
     reconstructed_values = [[models_values[name][artist] for artist in artist_labels] for name in model_names]
 
     plot_artist_performance_bar_chart_horizontal(reconstructed_values, model_names, artist_labels)
+
+    # plot_together(
+        # [fingerprints["baseline"], fingerprints["resnet18"], fingerprints["resnet20-10"], fingerprints["resnet20-100"]])

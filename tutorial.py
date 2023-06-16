@@ -85,9 +85,6 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
         converged = False
 
         for epoch in range(num_epochs):
-            print(f'Epoch {epoch}/{num_epochs - 1}')
-            print('-' * 10)
-
             # Each epoch has a training and validation phase
             for phase in ['train', 'validation']:
                 if phase == 'train':
@@ -138,7 +135,6 @@ def train_model(name, model, criterion, optimizer_init, num_epochs=25, pretraine
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
                 # deep copy the model
                 if phase == 'validation' and epoch_acc > best_acc:
